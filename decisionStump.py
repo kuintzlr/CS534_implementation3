@@ -2,124 +2,164 @@
 
 import sys
 import numpy as np
-
-usage = "python decisionStump.py <training csv file>  <test csv file>"
-
-train_file = sys.argv[1]
-test_file = sys.argv[2]
+from math import log
 
 # v is for vector:
+usage = "decisionStump.py <training csv file>  <test csv file>"
+
 def countZerosAndOnes(v):
-	classZero = 0
-	classOne = 0
-	for i in range(v):
-		if i==0:
-			classZero += 1
-		elif i==1:
-			classOne += 1
-	p0 = classZero/n
-	p1 = classOne/n
-	return(p0,p1)
-		
+    n = len(v)
+    classOne = np.count_nonzero(v)
+    classZero = n - classOne
+    if classZero == 0:
+        return 0.0 , 1.0
+    return classZero/float(n), classOne/float(n)
+        
 def chooseClassifier(x, y, Hy):
-	maxInfoGain = 0
-	bestFeature = 0 # How initialize?
-	decisions = [] 
-	for i in range(x):
-		(uncertainty,pY0X0,pY1X0) = evaluateFeature(x, y, i)
-		infoGain = Hy - uncertainty
-		if infoGain > maxInfoGain:
-			bestFeature = i
-			maxInfoGain = infoGain
-			print "i\tinfoGain"
+    maxInfoGain = 0
+    bestFeature = 0 
+    features = range(len(x[0]))
+    decisions = [{0: -1, 1: -1} for i in features]
+    for i in features:
+        (uncertainty, pY0X0, pY1X0, pY0X1, pY1X1) = evaluateFeature(x, y, i)
+        infoGain = Hy - uncertainty
+        if infoGain > maxInfoGain:
+            bestFeature = i
+            maxInfoGain = infoGain
+        if pY0X0 > pY1X0:
+            decisions[i][0] = 0 
+        else:
+            decisions[i][0] = 1
 
-		if pY0X0 > pY1X0:
-			decisions[i] = 'y0_if_x0' 
-		elif pY1X0 > pY0X0:
-			decisions[i] = 'y1_if_x0'
-		else: 
-			decisions[i] = 'na'
+        if pY0X1 > pY1X1 : 
+            decisions[i][1] = 0
+        else:
+            decisions[i][1] = 1
 
-	decision = decisions[bestFeature]
-
-	return(bestFeature,decision)
+    decision = decisions[bestFeature]
+    return (bestFeature,decision)
 
 def evaluateFeature(x, y, i):
+    (px0,px1) = countZerosAndOnes(x.transpose()[i])
+    countY0X0 = 0
+    countY1X0 = 0 
+    countY0X1 = 0
+    countY1X1 = 0
+    countX0 = 0
+    countX1 = 0
+    for j in range(len(y)):
+        if x[j][i] == 0 and y[j] == 0:
+            countX0 += 1
+            countY0X0 += 1
+        elif x[j][i] == 0 and y[j] == 1:
+            countX0 += 1
+            countY1X0 += 1
+        elif x[j][i] == 1 and y[j] == 0:
+            countX1 += 1
+            countY0X1 += 1
+        else:
+            countX1 += 1
+            countY1X1 += 1
+    
+    try:
+        pY0X0 = countY0X0/float(countX0)
+    except ZeroDivisionError:
+        pY0X0 = 1
+    finally:
+        pY1X0 = 1 - pY0X0
+   
+    try:
+        pY0X1 = countY0X1/float(countX1)
+    except ZeroDivisionError:
+        pY0X1 = 1
+    finally:
+        pY1X1 = 1 - pY0X1
+   
+    try: 
+        Hyx0 = -1 * pY0X0 * log(pY0X0, 2) - pY1X0 * log(pY1X0, 2)
+    except ValueError:
+        Hyx0 = 0    
+    try: 
+        Hyx1 = -1 * pY0X1 * log(pY0X1, 2) - pY1X1 * log(pY1X1, 2)
+    except ValueError:
+        Hyx1 = 0
+    uncertainty = px0 * Hyx0 + px1 * Hyx1
+    return (uncertainty,pY0X0,pY1X0, pY0X0, pY1X1)
 
-	(px0,px1) = countZerosAndOnes(x[i])
-	countY0X0 = 0
-	countY1X0 = 0 
-	countY0X1 = 0
-	countY1X1 = 0
-	countX0 = 0
-	countX1 = 0
-	for j in range(y):
-		if x[i][j] == 0:
-			countX0 += 1
-			if y[j]==0:
-				countY0X0 += 1
-			if y[j]==1:
-				countY1X0 += 1
-		elif x[i][j] == 1:
-			countX1 += 1
-			if y[j]==0:
-				countY0X1 += 1
-			if y[j]==1:
-				countY1X1 += 1
+def load_data(file):
+    x, y = [], []
+    for line in open(file, 'r'):
+        line_arr = [int(val) for val in line.strip().split(",")]
+        y.append(line_arr[0])
+        x.append(line_arr[1:])
+    return x, y
 
-	pY0X0 = countY0X0/countX0
-	pY1X0 = countY1X0/countX0 # = 1 - pY0X0, right?
-	pY0X1 = countY0X1/countX1 
-	pY1X1 = countY1X1/countX1 # = 1 - pY0X1
 
-	Hyx0 = - pY0X0 * np.log2(pY0X0) - pY1X0 * np.log2(pY1X0)
-	Hyx1 = - pY0X1 * np.log2(pY0X1) - pY1X1 * np.log2(pY1X1)
+def main():
+    train_file, test_file = get_cmd_args()
+    x, y = load_data(train_file)
+    x = np.array(x)
+    y = np.array(y)
+    xt = np.transpose(x)
+    bestFeature, stump = train(x, y)
+    print "Best Feature:", bestFeature
 
-	uncertainty = px0 * Hyx0 + px1 * Hyx1
-	return (uncertainty,pY0X0,pY1X0)
+    #test stuff        
+    x_test, y_test = load_data(test_file)
+    x_test, y_test = np.array(x_test), np.array(y_test)
+
+    accuracy, t_positive, t_negative = compute_accuracy(x, y, stump, bestFeature)
+    print accuracy, t_positive, t_negative
+    print compute_accuracy(x_test, y_test, stump, bestFeature)
+
+
+
+def predict(x, stump, bestFeature):
+    """
+    Semantically nice.
+    """
+    return stump[x[bestFeature]]
+
+#Train
+def train(x, y):
+    """
+    Returns, index of best feature, decision stump
+    """
+    py0, py1 = countZerosAndOnes(y) 
+    if py0 == 0 or py1 == 0:
+        Hy = 0
+     
+    Hy = -1 * py0 * log(py0, 2) - py1 * log(py1, 2)
+    (bestFeature, decision) = chooseClassifier(x, y, Hy)
+    return bestFeature, decision
+
+def compute_accuracy(x, y, stump, bestFeature):
+    """
+    x - features to evaluate
+    y - true class label
+    Hy - first uncertainty term
+    decision - brute forced list of decisions to make based on features
+
+    return accuracy, true positive, true negative
+    """
+    correct = 0
+    total = len(y)
+    pred_y = []
+    for i, example in enumerate(x):
+        decision = predict(example, stump, bestFeature)
+        if decision == y[i]:
+            correct += 1
+    accuracy = correct / float(total)
+    return accuracy, correct, float(total) - correct
+
+def get_cmd_args():
+    if len(sys.argv) < 3 or "-h" in sys.argv or "--help" in sys.argv:
+        print >> sys.stderr, usage
+        sys.exit()
+    train_file = sys.argv[1]
+    test_file = sys.argv[2]
+    return train_file, test_file
 
 if __name__ == '__main__':
-
-	data = np.genfromtxt(train_file, dtype=float, delimiter=',')
-
-	y = data[:,1]  # Because y values are in the first column of the table
-	cols = range(0,21) # Is this right?
-	x = data[:,cols]   # What do here? # This takes all columns but the first one?
-	xt = np.transpose(x)
-	
-	(n,m) = x.shape   # observations(rows), features(cols)                                                                                                                                                                   
-
-# Train:
-                                                                                                                                                                                         
-	(py0,py1) = countZerosAndOnes(y)
-	Hy = - py0 * np.log2(py0) - py1 * np.log2(py1)
-	(bestFeature,decision) = chooseClassifier(x, y, Hy)
-
-# Test:                                                                                                                                                                                                                                        
-	test_data = np.genfromtxt(test_file, dtype=float, delimiter=',')
-	y_test = test_data[:,1]
-	x_test = test_data[:,bestFeature] #?                                                                                                                                                                                                   
-	correct = 0
-	total = len(y_test)
-	
-	pred_y = []
-
-	for i in range(y):
-		if decision == 'y0_if_x0':
-			if x[i] == 0:
-				pred_y[i] = 0
-			elif x[i] == 1:
-				pred_y[i] = 1
-		elif decision == 'y1_if_x0':
-			if x[i] == 0:
-				pred_y[i] = 1
-			elif x[i] == 1:
-				pred_y[i] = 0
-		
-# Calculate accuracy:                                                                                                                                                                                                                  
-	for i in range(y):
-		if pred_y[i] == y[i]:
-			correct += 1
-			accuracy = correct/total
-			print "Test Accuracy:",accuracy
-				
+    main()
+            
