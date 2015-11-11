@@ -7,25 +7,29 @@ from math import log
 # v is for vector:
 usage = "decisionStump.py <training csv file>  <test csv file>"
 
-def countZerosAndOnes(v):
-    n = len(v)
-    classOne = np.count_nonzero(v)
-    classZero = n - classOne
-    if classZero == 0:
-        return 0.0 , 1.0
+def countZerosAndOnes(v, D):
+    n = sum(D)    
+    classOne, classZero = 0, 0
+    for val, weight in zip(v, D):
+        if val == 1:
+            classOne += weight
+        else:
+            classZero += weight
     return classZero/float(n), classOne/float(n)
+   
         
-def chooseClassifier(x, y, Hy):
+def chooseClassifier(x, y, Hy, D):
     maxInfoGain = 0
     bestFeature = 0 
     features = range(len(x[0]))
     decisions = [{0: -1, 1: -1} for i in features]
     for i in features:
-        (uncertainty, pY0X0, pY1X0, pY0X1, pY1X1) = evaluateFeature(x, y, i)
+        (uncertainty, pY0X0, pY1X0, pY0X1, pY1X1) = evaluateFeature(x, y, i, D)
         infoGain = Hy - uncertainty
         if infoGain > maxInfoGain:
             bestFeature = i
             maxInfoGain = infoGain
+
         if pY0X0 > pY1X0:
             decisions[i][0] = 0 
         else:
@@ -39,8 +43,9 @@ def chooseClassifier(x, y, Hy):
     decision = decisions[bestFeature]
     return (bestFeature,decision)
 
-def evaluateFeature(x, y, i):
-    (px0,px1) = countZerosAndOnes(x.transpose()[i])
+def evaluateFeature(x, y, i, D):
+    (px0, px1) = countZerosAndOnes(x.transpose()[i], D)
+    
     countY0X0 = 0
     countY1X0 = 0 
     countY0X1 = 0
@@ -49,17 +54,17 @@ def evaluateFeature(x, y, i):
     countX1 = 0
     for j in range(len(y)):
         if x[j][i] == 0 and y[j] == 0:
-            countX0 += 1
-            countY0X0 += 1
-        elif x[j][i] == 0 and y[j] == 1:
-            countX0 += 1
-            countY1X0 += 1
+            countX0 += 1 * D[j] 
+            countY0X0 += 1 * D[j]
         elif x[j][i] == 1 and y[j] == 0:
-            countX1 += 1
-            countY0X1 += 1
+            countX1 += 1 * D[j]
+            countY0X1 += 1 *D[j]
+        elif x[j][i] == 0 and y[j] == 1:
+            countX0 += 1 * D[j]
+            countY1X0 += 1 *D[j]
         else:
-            countX1 += 1
-            countY1X1 += 1
+            countX1 += 1 * D[j]
+            countY1X1 += 1 * D[j]
     
     try:
         pY0X0 = countY0X0/float(countX0)
@@ -83,6 +88,7 @@ def evaluateFeature(x, y, i):
         Hyx1 = -1 * pY0X1 * log(pY0X1, 2) - pY1X1 * log(pY1X1, 2)
     except ValueError:
         Hyx1 = 0
+    
     uncertainty = px0 * Hyx0 + px1 * Hyx1
     return (uncertainty,pY0X0,pY1X0, pY0X0, pY1X1)
 
@@ -100,7 +106,6 @@ def main():
     x, y = load_data(train_file)
     x = np.array(x)
     y = np.array(y)
-    xt = np.transpose(x)
     bestFeature, stump = train(x, y)
     print "Best Feature:", bestFeature
 
@@ -121,16 +126,20 @@ def predict(x, stump, bestFeature):
     return stump[x[bestFeature]]
 
 #Train
-def train(x, y):
+def train(x, y, D=None):
     """
+    
     Returns, index of best feature, decision stump
     """
-    py0, py1 = countZerosAndOnes(y) 
+    if D == None:
+        D=[1] * len(x)
+    py0, py1 = countZerosAndOnes(y, D) 
     if py0 == 0 or py1 == 0:
         Hy = 0
-     
-    Hy = -1 * py0 * log(py0, 2) - py1 * log(py1, 2)
-    (bestFeature, decision) = chooseClassifier(x, y, Hy)
+    else: 
+        Hy = -1 * py0 * log(py0, 2) - py1 * log(py1, 2)
+            
+    (bestFeature, decision) = chooseClassifier(x, y, Hy, D)
     return bestFeature, decision
 
 def compute_accuracy(x, y, stump, bestFeature):

@@ -10,8 +10,7 @@ def main():
     train_file, test_file, T = get_args()
     x_train, y_train = decisionStump.load_data(train_file)
     x_test, y_test = decisionStump.load_data(test_file)
-
-
+    
     bags = [] #"(bestFeature, stump) ..."
     for i in range(T):
         bestFeature, stump = create_bag(x_train, y_train)
