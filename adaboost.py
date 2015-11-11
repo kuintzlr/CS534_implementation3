@@ -36,10 +36,10 @@ def compute_accuracy(X, y, ensemble):
 
 def ada_boosting(X, y, L):
     D = [1.0/len(X)] * len(X)
-    errorSum = 0
     
     ensemble = [] #{stump": => , "alpha" : => } 
     for i in range(L):
+        errorSum = 0
         bestFeature, stump = decisionStump.train(X, y, D)
         print bestFeature
         #calculate error sum
