@@ -115,7 +115,8 @@ def main():
 
     accuracy, t_positive, t_negative = compute_accuracy(x, y, stump, bestFeature)
     print accuracy, t_positive, t_negative
-    print compute_accuracy(x_test, y_test, stump, bestFeature)
+    accuracy, t_positive, t_negative = compute_accuracy(x_test, y_test, stump, bestFeature)
+    print accuracy, t_positive, t_negative
 
 
 

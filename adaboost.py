@@ -14,8 +14,9 @@ def main():
     X_test, y_test = decisionStump.load_data(test)
     X_test, y_test = np.array(X_test), np.array(y_test)
     ensemble = ada_boosting(X_train, y_train, L)
-    print compute_accuracy(X_train, y_train, ensemble)
-#    print compute_accuracy(X_test, y_test, ensemble)
+    acc_t,c,i = compute_accuracy(X_train, y_train, ensemble)
+    acc_te,c,i = compute_accuracy(X_test, y_test, ensemble)
+    print acc_t, acc_te
 
 
 def predict(X, ensemble):
@@ -41,7 +42,6 @@ def ada_boosting(X, y, L):
     for i in range(L):
         errorSum = 0
         bestFeature, stump = decisionStump.train(X, y, D)
-        print bestFeature
         #calculate error sum
         for i, (example, true_label) in enumerate(zip(X, y)):
             if decisionStump.predict(example, stump, bestFeature) != true_label:
@@ -54,12 +54,9 @@ def ada_boosting(X, y, L):
         #update weights
         for i, (example, true_label) in enumerate(zip(X, y)):
             if decisionStump.predict(example, stump, bestFeature) == true_label:
-                print "corect", exp(-1 * alpha)
                 D[i] *= exp(-1 * alpha)
             else:
-                print "incorrect", exp(alpha)
                 D[i] *= exp(alpha)
-        print i, mean_error, alpha
         ensemble.append({"stump": stump, "bestFeature": bestFeature, "alpha": alpha})
     return ensemble
                 

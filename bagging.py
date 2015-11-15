@@ -3,21 +3,27 @@ import sys
 import numpy as np
 import random
 from random import sample
+import scipy
 usage = "bagging.py\t<train.csv>\t<test.csv>\t<num stumps>"
-num_samples = 10
+num_samples = 40
 
 def main():
     train_file, test_file, T = get_args()
     x_train, y_train = decisionStump.load_data(train_file)
     x_test, y_test = decisionStump.load_data(test_file)
-    
-    bags = [] #"(bestFeature, stump) ..."
-    for i in range(T):
-        bestFeature, stump = create_bag(x_train, y_train)
-        bags.append((bestFeature, stump))
-        
-    print compute_accuracy(x_train, y_train, bags)
-    print compute_accuracy(x_test, y_test, bags)
+    for t in range(5,T,5): 
+        bags = [] #"(bestFeature, stump) ..."
+        for i in range(t):
+            bestFeature, stump = create_bag(x_train, y_train)
+            bags.append((bestFeature, stump))
+        test_acc = []
+        train_acc = []
+        for i in range(10000):        
+            acc, c, i = compute_accuracy(x_train, y_train, bags)
+            train_acc.append(acc)
+            acc, c, i = compute_accuracy(x_test, y_test, bags)
+            test_acc.append(acc)
+        print str(t)+","+str(scipy.mean(train_acc))+","+str(scipy.mean(test_acc))
 
 def compute_accuracy(x, y, bags):
     correct = 0.0
